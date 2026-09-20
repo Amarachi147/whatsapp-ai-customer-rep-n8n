@@ -181,7 +181,7 @@
     {
       "parameters": {
         "operation": "send",
-        "phoneNumberId": "1353196897872469",
+        "phoneNumberId": "YOUR_PHONE_NUMBER_ID",
         "recipientPhoneNumber": "={{ $('Extract Message Data').item.json.from }}",
         "textBody": "={{ $json.output }}",
         "additionalFields": {}
@@ -207,7 +207,7 @@
     {
       "parameters": {
         "operation": "send",
-        "phoneNumberId": "1172506355940744",
+        "phoneNumberId": "YOUR_PHONE_NUMBER_ID",
         "recipientPhoneNumber": "={{ $('Extract Message Data').item.json.from }}",
         "textBody": "Sorry, I'm having trouble responding right now. A team member will follow up with you shortly.",
         "additionalFields": {}
