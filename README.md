@@ -5,7 +5,7 @@ An AI-powered customer service representative for WhatsApp, built for a cosmetic
 ## How it works
 - **Channel:** WhatsApp Cloud API
 - **Orchestration:** n8n
-- **AI model:** Claude
+- **AI model:** openai
 - **Knowledge base:** RAG-based product knowledge base — answers questions accurately from real product data
 - **Rich responses:** can send product images directly inside the WhatsApp chat
 - **Human fallback:** escalates to a human agent when the AI can't confidently resolve a query
@@ -20,7 +20,7 @@ An AI-powered customer service representative for WhatsApp, built for a cosmetic
 *(Note: automatic WhatsApp Status posting was excluded from this build, as the official WhatsApp Business Platform doesn't support it reliably.)*
 
 ## Stack
-n8n · WhatsApp Cloud API · Claude · RAG / vector store
+n8n · WhatsApp Cloud API · openai · RAG / vector store
 
 ## Files
 - `workflow.json` — exported n8n workflow (client-identifying details replaced with placeholders)
