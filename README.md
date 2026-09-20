@@ -1,4 +1,4 @@
-# WhatsApp AI Customer Rep (n8n + Claude)
+# WhatsApp AI Customer Rep (n8n + openai)
 
 An AI-powered customer service representative for WhatsApp, built for a cosmetics business, combining a RAG product knowledge base with human fallback for cases the AI can't handle.
 
