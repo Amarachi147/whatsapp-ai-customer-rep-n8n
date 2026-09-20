@@ -1,0 +1,452 @@
+{
+  "name": "WhatsApp Cosmetics Chatbot",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "messages"
+        ],
+        "options": {}
+      },
+      "id": "3763410a-3a2f-4010-869f-da1fb94aa1ae",
+      "name": "WhatsApp Trigger",
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [
+        -624,
+        48
+      ],
+      "webhookId": "83632299-d5c8-4068-956b-258103d4b569",
+      "credentials": {
+        "whatsAppTriggerApi": {
+          "id": "ZhJfM804gGfviD9I",
+          "name": "WhatsApp OAuth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.messages[0].type }}",
+                    "rightValue": "text",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Text"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2d6f0a51-0391-4419-9b61-35c55ea37dd8",
+      "name": "Message Type Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -400,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const message = $json.messages?.[0];\nif (!message) {\n  throw new Error('No message payload found in incoming webhook data');\n}\nreturn [{\n  json: {\n    from: message.from,\n    text: message.text?.body || '',\n    messageId: message.id\n  }\n}];"
+      },
+      "id": "9d9199bb-54e1-4489-9832-ce34eaf4f9cf",
+      "name": "Extract Message Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -176,
+        48
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.text }}",
+        "options": {
+          "systemMessage": "You are a friendly customer representative for a cosmetics business on WhatsApp. Answer questions using the Product Knowledge Base tool. If a customer asks what products are available, or asks about a specific product, use the Send Product Image tool to show them a picture in addition to describing it in text. Keep replies short and conversational, suited for WhatsApp. If you don't know something, say a team member will follow up rather than guessing."
+        }
+      },
+      "id": "03e34241-152c-4669-b53d-64d469abba87",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        64,
+        -32
+      ],
+      "retryOnFail": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Extract Message Data').item.json.from }}",
+        "contextWindowLength": 10
+      },
+      "id": "34b78ae3-74a6-465b-8efb-c37bf4c1b30a",
+      "name": "Simple Memory (per customer)",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        144,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "Product_Knowledge_Base",
+        "toolDescription": "Use this to look up cosmetics product information, prices, ingredients, and availability from the knowledge base."
+      },
+      "id": "d46f3a2e-61ab-4fcc-97d9-f61e9680bbc7",
+      "name": "Product Knowledge Base",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "ed8fe6b3-334d-4fde-9df2-705ceb958879",
+      "name": "OpenAI Embeddings",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        304,
+        384
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Sends a product photo to the customer on WhatsApp. Use this whenever a customer asks to see a product or asks what's available. Input should include the direct image URL from the knowledge base for the matching product, and the customer's WhatsApp number.",
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/1172506355940744/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $fromAI('recipient_number', 'the customer WhatsApp number to send the image to') }}\",\n  \"type\": \"image\",\n  \"image\": {\n    \"link\": \"{{ $fromAI('image_url', 'the direct image URL of the product') }}\"\n  }\n}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "b6bb3d60-c56f-419b-9c83-ba8253c42176",
+      "name": "Send Product Image (Tool)",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        432,
+        112
+      ],
+      "retryOnFail": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "MUrO6K1Emt8Grg6y",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "1353196897872469",
+        "recipientPhoneNumber": "={{ $('Extract Message Data').item.json.from }}",
+        "textBody": "={{ $json.output }}",
+        "additionalFields": {}
+      },
+      "id": "1343e692-16de-4b60-99f0-4ba0b1a44af4",
+      "name": "Send WhatsApp Reply",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        416,
+        -48
+      ],
+      "retryOnFail": true,
+      "webhookId": "2a5deb9b-4bfe-4dbf-99c0-2a6ac14ab20c",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "IaoGzPCjZeuKtnls",
+          "name": "WhatsApp account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "1172506355940744",
+        "recipientPhoneNumber": "={{ $('Extract Message Data').item.json.from }}",
+        "textBody": "Sorry, I'm having trouble responding right now. A team member will follow up with you shortly.",
+        "additionalFields": {}
+      },
+      "id": "aef13588-b820-444d-9a66-aefc9b36e3fc",
+      "name": "Send Fallback Error Reply",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        96,
+        400
+      ],
+      "webhookId": "012078b8-585d-4240-ac1b-c2007efceb45",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "IaoGzPCjZeuKtnls",
+          "name": "WhatsApp account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Errors",
+          "mode": "name"
+        },
+        "columns": {
+          "value": {
+            "timestamp": "={{ $now.toISO() }}",
+            "customer_number": "={{ $('Extract Message Data').item.json.from || 'unknown' }}",
+            "error_message": "={{ $json.error?.message || $json.message || 'Unknown error' }}",
+            "node": "={{ $json.error?.node?.name || 'Unknown node' }}"
+          },
+          "mappingMode": "defineBelow"
+        },
+        "options": {}
+      },
+      "id": "9a7641cb-af74-4273-96f9-6f5a8fc23b4d",
+      "name": "Log Error to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        464,
+        432
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Wn2MDfNKAdlNIVit",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        192
+      ],
+      "id": "9590955b-9b5c-47e6-964c-cf03c4d6bcb5",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "WhatsApp Trigger": {
+      "main": [
+        [
+          {
+            "node": "Message Type Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message Type Switch": {
+      "main": [
+        [
+          {
+            "node": "Extract Message Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Message Data": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Fallback Error Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Fallback Error Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory (per customer)": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Product Knowledge Base": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Product Knowledge Base",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Product Image (Tool)": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp Reply": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Log Error to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Fallback Error Reply": {
+      "main": [
+        [
+          {
+            "node": "Log Error to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "fbff8ba7-b761-4ca4-944c-fda9c3d4faf6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ab9cffb6a0284b57b4a9c194b430c2c890aec308c3650533edd51f40eea6d9aa"
+  },
+  "nodeGroups": [],
+  "id": "mRcaqMOVXEcHr41w",
+  "tags": []
+}
